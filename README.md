@@ -80,4 +80,37 @@ Club organizers can create lightweight reading groups and attach suggested books
 
 ## Installation Instructions
 
-The repository will gain a `client/` and `server/` folder during development. After those exist: install dependencies in each package, set `DATABASE_URL` (and any API base URL) in environment variables, run migrations and seed data, then start the Express API and the React dev server. These steps will be expanded with exact commands in the final README before submission.
+### Backend (`server/`)
+
+Requirements: Node.js 20+, access to a Postgres database (we use Render).
+
+```bash
+cd server
+npm install
+cp .env.example .env     # then edit .env to add your DATABASE_URL
+npm run db:reset         # drops + recreates the books table and seeds 6 sample books
+npm start                # API on http://localhost:3001
+```
+
+Available npm scripts:
+
+| Script             | What it does                                          |
+|--------------------|-------------------------------------------------------|
+| `npm start`        | Run the Express API on `PORT` (default `3001`)        |
+| `npm run dev`      | Same as `start` but with `node --watch` for reload    |
+| `npm run db:migrate` | Apply `db/schema.sql` (create tables)               |
+| `npm run db:seed`  | Insert sample rows from `db/seed.sql`                 |
+| `npm run db:reset` | Drop, recreate, and reseed the database              |
+
+### API endpoints (books)
+
+- `GET /api/books` — list all books. Supports `?status=want_to_read|reading|finished` and `?shelf_id=…`
+- `GET /api/books/:id` — one book
+- `POST /api/books` — create (required: `title`, `author`, `status`)
+- `PATCH /api/books/:id` — update any subset of fields
+- `DELETE /api/books/:id` — delete
+- `GET /api/health` — liveness check
+
+### Frontend (`client/`)
+
+The React client will be added in the next milestone.
