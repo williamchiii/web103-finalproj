@@ -229,6 +229,7 @@ function FilterControls({ filters, shelves, tags, sort, onFilterChange, onSortCh
 }
 
 function BookCard({ book, shelfName, onEdit, onDelete, busy }) {
+  const bookTags = book.tags ?? [];
   return (
     <li className="book-card" style={{ "--book-color": getBookAccent(book) }}>
       <div className="book-cover" aria-hidden="true">
@@ -243,7 +244,7 @@ function BookCard({ book, shelfName, onEdit, onDelete, busy }) {
       </div>
       <p className="shelf-label">{book.shelf_name || shelfName || "No shelf"}</p>
       <div className="tag-list" aria-label={`${book.title} tags`}>
-        {book.tags.length > 0 ? book.tags.map((tag) => <span key={tag.id}>{tag.name}</span>) : <span>No tags</span>}
+        {bookTags.length > 0 ? bookTags.map((tag) => <span key={tag.id}>{tag.name}</span>) : <span>No tags</span>}
       </div>
       <div className="row-actions">
         <button type="button" onClick={() => onEdit(book)} disabled={busy}>
@@ -496,6 +497,23 @@ function LibraryPage({ user, onLogout }) {
   const [sort, setSort] = useState("updated_desc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [localTagAssignments, setLocalTagAssignments] = useState({});
+
+  const tagById = useMemo(
+    () => Object.fromEntries(tags.map((tag) => [String(tag.id), tag])),
+    [tags],
+  );
+
+  function enrichBooksWithLocalTags(data, assignments = localTagAssignments) {
+    return data.map((book) => {
+      if (book.tags?.length) return book;
+      const assignedTagIds = assignments[String(book.id)] ?? [];
+      return {
+        ...book,
+        tags: assignedTagIds.map((tagId) => tagById[String(tagId)]).filter(Boolean),
+      };
+    });
+  }
 
   async function loadLookups() {
     setLookupNotice("");
@@ -507,7 +525,7 @@ function LibraryPage({ user, onLogout }) {
     }
   }
 
-  async function loadBooks(nextFilters = filters) {
+  async function loadBooks(nextFilters = filters, assignments = localTagAssignments) {
     setLoading(true);
     setError("");
     const qs = new URLSearchParams();
@@ -517,7 +535,7 @@ function LibraryPage({ user, onLogout }) {
 
     try {
       const data = await apiJson(`/api/books${qs.toString() ? `?${qs.toString()}` : ""}`);
-      setBooks(data);
+      setBooks(enrichBooksWithLocalTags(data, assignments));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -542,7 +560,7 @@ function LibraryPage({ user, onLogout }) {
   const sortedBooks = useMemo(() => {
     const visibleBooks = books.filter((book) => {
       if (filters.shelf_id && String(book.shelf_id) !== String(filters.shelf_id)) return false;
-      if (filters.tag_id && !book.tags.some((tag) => String(tag.id) === String(filters.tag_id))) return false;
+      if (filters.tag_id && !(book.tags ?? []).some((tag) => String(tag.id) === String(filters.tag_id))) return false;
       return true;
     });
     const copy = [...visibleBooks];
@@ -562,15 +580,19 @@ function LibraryPage({ user, onLogout }) {
   }
 
   async function createBook(payload) {
-    await apiJson("/api/books", { method: "POST", body: JSON.stringify(payload) });
-    await loadBooks();
+    const created = await apiJson("/api/books", { method: "POST", body: JSON.stringify(payload) });
+    const nextAssignments = { ...localTagAssignments, [String(created.id)]: payload.tag_ids ?? [] };
+    setLocalTagAssignments(nextAssignments);
+    await loadBooks(filters, nextAssignments);
     setToast("Book added");
   }
 
   async function updateBook(payload) {
     await apiJson(`/api/books/${editing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    const nextAssignments = { ...localTagAssignments, [String(editing.id)]: payload.tag_ids ?? [] };
+    setLocalTagAssignments(nextAssignments);
     setEditing(null);
-    await loadBooks();
+    await loadBooks(filters, nextAssignments);
     setToast("Book updated");
   }
 
