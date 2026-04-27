@@ -2,7 +2,7 @@
 
 CodePath WEB103 Final Project
 
-Designed and developed by: Adit Afnan, Kaleab Alemu, Osmani Hernandez, Olayinka Vaughan, Raymond Frimpong Amoateng, William Chi
+Designed and developed by:  Kaleab Alemu, William Chi
 
 🔗 Link to deployed app: *Pending Render deployment. Add the live Render URL here after deployment.*
 
