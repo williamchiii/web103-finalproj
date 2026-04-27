@@ -4,7 +4,7 @@ CodePath WEB103 Final Project
 
 Designed and developed by: Adit Afnan, Kaleab Alemu, Osmani Hernandez, Olayinka Vaughan, Raymond Frimpong Amoateng, William Chi
 
-🔗 Link to deployed app: *Pending Render deployment. Add the live Render URL here after deployment.*
+🔗 Link to deployed app: https://readwell-gjoj.onrender.com
 
 ## About
 
@@ -22,13 +22,13 @@ Frontend: React, React Router, CSS
 
 Backend: Node.js, Express, PostgreSQL
 
-Auth: GitHub OAuth with Passport.js and cookie sessions
+Auth: GitHub OAuth with Passport.js, express-session, connect-pg-simple
 
 ## Features
 
 ### ✅ Library dashboard
 
-A home view that lists the user’s books with key fields (title, author, status, shelf, tags) so they can scan their collection at a glance.
+A home view that lists the user's books with key fields (title, author, status, shelf, tags) so they can scan their collection at a glance.
 
 ![Library dashboard GIF](./milestones/assets/library-dashboard.gif)
 
@@ -40,31 +40,31 @@ Create, read, update, and delete books through the UI backed by a RESTful API (G
 
 ### ✅ Shelves (one-to-many)
 
-Seeded shelves organize books into named collections. Readers can assign a book to a shelf and filter the dashboard by shelf.
+Readers can create named shelves and assign books to them. Filter the dashboard by shelf to see only those titles.
 
 ![Shelves GIF](./milestones/assets/shelves.gif)
 
 ### ✅ Tags (many-to-many)
 
-Readers apply multiple tags to a book using the `book_tags` join table between books and tags, then filter the dashboard by tag.
+Readers apply multiple tags to a book via the `book_tags` join table, then filter the dashboard by tag.
 
 ![Tags GIF](./milestones/assets/tags.gif)
 
 ### ✅ Filters and sorting *(custom)*
 
-Filter books by status, shelf, or tag, and sort by title or date updated, so large lists stay usable without extra navigation.
+Filter books by status, shelf, or tag, and sort by title A-Z, author A-Z, or date updated, so large lists stay usable without extra navigation.
 
 ![Filters and sorting GIF](./milestones/assets/filters-sorting.gif)
 
 ### ✅ Quick-add and edit modal *(custom)*
 
-Open a slide-out or modal to add or edit a book without leaving the library page, keeping context while satisfying validation before save.
+Open a modal to add or edit a book—including creating new shelves and tags inline—without leaving the library page.
 
 ![Quick add / edit modal GIF](./milestones/assets/quick-add-edit-modal.gif)
 
 ### ✅ Reading snapshot panel
 
-An on-page summary (counts by status, recent updates) that updates after changes without a full page navigation—supporting a smooth single-page experience.
+An on-page summary (counts by status, reading-mix bar chart, currently-reading card, percent finished) that updates after any change without a full page reload.
 
 ![Reading snapshot panel GIF](./milestones/assets/reading-snapshot.gif)
 
@@ -76,94 +76,142 @@ A documented reset script restores users, shelves, books, tags, and book-tag ass
 
 ### ✅ GitHub OAuth login *(stretch)*
 
-Users sign in with GitHub before viewing the reading dashboard, and can log out from the app header.
+Users sign in with GitHub before viewing the reading dashboard. Sessions are persisted in Postgres via `connect-pg-simple` so logins survive server restarts. Users can log out from the app header.
 
 ![GitHub OAuth GIF](./milestones/assets/github-oauth.gif)
 
-### Reading groups *(organizer, not implemented)*
+### Reading groups *(not implemented)*
 
 Club organizers can create lightweight reading groups and attach suggested books so friends can follow a shared plan alongside their personal library.
 
-[gif goes here]
-
 ## Installation Instructions
 
-### Backend (`server/`)
+### Prerequisites
 
-Requirements: Node.js 20+, access to a Postgres database (we use Render).
+- Node.js 20+
+- A PostgreSQL database (local or Render)
+- A GitHub OAuth App (for auth)
+
+### Backend (`server/`)
 
 ```bash
 cd server
 npm install
-cp .env.example .env     # then edit .env to add your DATABASE_URL
-npm run db:reset         # drops + recreates demo tables and seeds sample data
-npm start                # API on http://localhost:3001
+cp .env.example .env   # fill in your values (see below)
+npm run db:reset       # drops, recreates, and seeds all tables
+npm start              # API on http://localhost:3001
 ```
 
-Available npm scripts:
+**Environment variables** — copy `.env.example` and fill in:
 
-| Script             | What it does                                          |
-|--------------------|-------------------------------------------------------|
-| `npm start`        | Run the Express API on `PORT` (default `3001`)        |
-| `npm run dev`      | Same as `start` but with `node --watch` for reload    |
-| `npm run db:migrate` | Apply `db/schema.sql` (create tables)               |
-| `npm run db:seed`  | Insert sample rows from `db/seed.sql`                 |
-| `npm run db:reset` | Drop, recreate, and reseed the database              |
+| Variable | Description |
+|---|---|
+| `PORT` | Port for the Express server (default `3001`) |
+| `DATABASE_URL` | Postgres connection string |
+| `PGSSL` | Set `true` when connecting to Render Postgres |
+| `SESSION_SECRET` | Long random string used to sign session cookies |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret |
+| `GITHUB_CALLBACK_URL` | Full callback URL (e.g. `http://localhost:3001/api/auth/github/callback`) |
+| `CLIENT_URL` | Frontend origin used for post-login redirect (e.g. `http://localhost:5173`) |
+
+**npm scripts:**
+
+| Script | What it does |
+|---|---|
+| `npm start` | Run the Express API on `PORT` |
+| `npm run dev` | Same but with nodemon for auto-reload |
+| `npm run db:migrate` | Create tables (non-destructive) |
+| `npm run db:seed` | Insert sample rows |
+| `npm run db:reset` | Drop, recreate, and reseed everything |
 
 ### API endpoints
 
-- `GET /api/books` — list all books. Supports `?status=want_to_read|reading|finished`, `?shelf_id=...`, and `?tag_id=...`
-- `GET /api/books/:id` — one book with shelf and tag data
-- `POST /api/books` — create (required: `title`, `author`, `status`; optional: `shelf_id`, `tag_ids`, `notes`)
-- `PATCH /api/books/:id` — update book fields and tag assignments
-- `DELETE /api/books/:id` — delete
-- `GET /api/shelves` — list shelves
-- `GET /api/tags` — list tags
-- `GET /api/auth/github` — start GitHub OAuth
-- `GET /api/auth/github/callback` — GitHub OAuth callback
-- `GET /api/auth/me` — current logged-in user
-- `POST /api/auth/logout` — log out
-- `GET /api/health` — liveness check
+**Books**
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/books` | List all books. Supports `?status=`, `?shelf_id=`, `?tag_id=` |
+| `GET` | `/api/books/:id` | One book with shelf name and tags |
+| `POST` | `/api/books` | Create a book. Required: `title`, `author`, `status`. Optional: `shelf_id`, `tag_ids[]`, `notes` |
+| `PATCH` | `/api/books/:id` | Update book fields and/or tag assignments |
+| `DELETE` | `/api/books/:id` | Delete a book |
+
+**Shelves**
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/shelves` | List all shelves with `book_count` |
+| `POST` | `/api/shelves` | Create a shelf. Required: `name`. Optional: `description` |
+
+**Tags**
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/tags` | List all tags with `book_count` |
+| `POST` | `/api/tags` | Create a tag. Required: `name` |
+
+**Auth**
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/auth/github` | Redirect to GitHub OAuth |
+| `GET` | `/api/auth/github/callback` | GitHub OAuth callback |
+| `GET` | `/api/auth/me` | Returns current logged-in user or `null` |
+| `POST` | `/api/auth/logout` | Clears session and logs out |
+| `GET` | `/api/health` | Liveness check |
 
 ### Frontend (`client/`)
-
-Requirements: Node.js 20+
 
 ```bash
 cd client
 npm install
-npm run dev
+npm run dev   # Vite dev server on http://localhost:5173
 ```
 
-Frontend routes:
+The Vite dev server proxies all `/api` requests to `http://localhost:3001` automatically.
 
-- `/` — library dashboard with filtering, sorting, add/edit modal, and delete actions
-- `/books/:id` — book detail page (dynamic route)
+**Frontend routes:**
+
+| Path | Description |
+|---|---|
+| `/` | Library dashboard — filtering, sorting, add/edit modal, delete |
+| `/books/:id` | Book detail page |
 
 ### Render deployment
 
-Use one Render web service plus one Render Postgres database.
+This repo includes a `render.yaml` Render Blueprint. Create a **web service** and a **Postgres database** on Render, then connect them.
 
-This repo also includes `render.yaml` for Render Blueprint deployment.
+**Build command:**
+```
+npm --prefix server install && npm --prefix client install && npm --prefix client run build
+```
 
-Recommended web service settings:
+**Start command:**
+```
+cd server && npm start
+```
 
-- Root directory: repository root
-- Build command: `npm --prefix server install && npm --prefix client install && npm --prefix client run build`
-- Start command: `cd server && npm start`
-- Environment variables:
-  - `DATABASE_URL`: your Render Postgres internal connection string
-  - `NODE_ENV`: `production`
-  - `PGSSL`: `true`
-  - `SESSION_SECRET`: long random string used to sign session cookies
-  - `GITHUB_CLIENT_ID`: GitHub OAuth app client ID
-  - `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret
-  - `GITHUB_CALLBACK_URL`: `https://your-app.onrender.com/api/auth/github/callback`
-  - `CLIENT_URL`: `https://your-app.onrender.com`
+**Required environment variables on Render** (set in the dashboard):
 
-After creating the Postgres database and before recording the final demo, run the first production seed command from the Render shell:
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | Auto-filled from Render Postgres (via Blueprint) |
+| `PGSSL` | `true` |
+| `SESSION_SECRET` | Long random string |
+| `GITHUB_CLIENT_ID` | Your GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | Your GitHub OAuth App client secret |
+| `GITHUB_CALLBACK_URL` | `https://your-app.onrender.com/api/auth/github/callback` |
+| `CLIENT_URL` | `https://your-app.onrender.com` |
+
+**GitHub OAuth App settings** (github.com → Settings → Developer settings → OAuth Apps):
+
+- **Homepage URL:** `https://your-app.onrender.com`
+- **Authorization callback URL:** `https://your-app.onrender.com/api/auth/github/callback`
+
+After the first deploy, seed the database from the Render shell:
 
 ```bash
-cd server
-npm run db:reset
+cd server && npm run db:reset
 ```
