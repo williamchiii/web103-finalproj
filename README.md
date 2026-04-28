@@ -2,7 +2,7 @@
 
 CodePath WEB103 Final Project
 
-Designed and developed by: Kaleab Alemu, William Chi
+Designed and developed by: Kaleab Alemu, William Chi, Raymond Frimpong Amoateng
 
 🔗 Link to deployed app: https://readwell-gjoj.onrender.com
 
@@ -104,62 +104,62 @@ npm start              # API on http://localhost:3001
 
 **Environment variables** — copy `.env.example` and fill in:
 
-| Variable | Description |
-|---|---|
-| `PORT` | Port for the Express server (default `3001`) |
-| `DATABASE_URL` | Postgres connection string |
-| `PGSSL` | Set `true` when connecting to Render Postgres |
-| `SESSION_SECRET` | Long random string used to sign session cookies |
-| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret |
-| `GITHUB_CALLBACK_URL` | Full callback URL (e.g. `http://localhost:3001/api/auth/github/callback`) |
-| `CLIENT_URL` | Frontend origin used for post-login redirect (e.g. `http://localhost:5173`) |
+| Variable                 | Description                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `PORT`                 | Port for the Express server (default `3001`)                               |
+| `DATABASE_URL`         | Postgres connection string                                                   |
+| `PGSSL`                | Set `true` when connecting to Render Postgres                              |
+| `SESSION_SECRET`       | Long random string used to sign session cookies                              |
+| `GITHUB_CLIENT_ID`     | GitHub OAuth App client ID                                                   |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret                                               |
+| `GITHUB_CALLBACK_URL`  | Full callback URL (e.g.`http://localhost:3001/api/auth/github/callback`)   |
+| `CLIENT_URL`           | Frontend origin used for post-login redirect (e.g.`http://localhost:5173`) |
 
 **npm scripts:**
 
-| Script | What it does |
-|---|---|
-| `npm start` | Run the Express API on `PORT` |
-| `npm run dev` | Same but with nodemon for auto-reload |
-| `npm run db:migrate` | Create tables (non-destructive) |
-| `npm run db:seed` | Insert sample rows |
-| `npm run db:reset` | Drop, recreate, and reseed everything |
+| Script                 | What it does                          |
+| ---------------------- | ------------------------------------- |
+| `npm start`          | Run the Express API on `PORT`       |
+| `npm run dev`        | Same but with nodemon for auto-reload |
+| `npm run db:migrate` | Create tables (non-destructive)       |
+| `npm run db:seed`    | Insert sample rows                    |
+| `npm run db:reset`   | Drop, recreate, and reseed everything |
 
 ### API endpoints
 
 **Books**
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/books` | List all books. Supports `?status=`, `?shelf_id=`, `?tag_id=` |
-| `GET` | `/api/books/:id` | One book with shelf name and tags |
-| `POST` | `/api/books` | Create a book. Required: `title`, `author`, `status`. Optional: `shelf_id`, `tag_ids[]`, `notes` |
-| `PATCH` | `/api/books/:id` | Update book fields and/or tag assignments |
-| `DELETE` | `/api/books/:id` | Delete a book |
+| Method     | Path               | Description                                                                                                 |
+| ---------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/books`     | List all books. Supports `?status=`, `?shelf_id=`, `?tag_id=`                                         |
+| `GET`    | `/api/books/:id` | One book with shelf name and tags                                                                           |
+| `POST`   | `/api/books`     | Create a book. Required:`title`, `author`, `status`. Optional: `shelf_id`, `tag_ids[]`, `notes` |
+| `PATCH`  | `/api/books/:id` | Update book fields and/or tag assignments                                                                   |
+| `DELETE` | `/api/books/:id` | Delete a book                                                                                               |
 
 **Shelves**
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/shelves` | List all shelves with `book_count` |
-| `POST` | `/api/shelves` | Create a shelf. Required: `name`. Optional: `description` |
+| Method   | Path             | Description                                                  |
+| -------- | ---------------- | ------------------------------------------------------------ |
+| `GET`  | `/api/shelves` | List all shelves with `book_count`                         |
+| `POST` | `/api/shelves` | Create a shelf. Required:`name`. Optional: `description` |
 
 **Tags**
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/tags` | List all tags with `book_count` |
-| `POST` | `/api/tags` | Create a tag. Required: `name` |
+| Method   | Path          | Description                       |
+| -------- | ------------- | --------------------------------- |
+| `GET`  | `/api/tags` | List all tags with `book_count` |
+| `POST` | `/api/tags` | Create a tag. Required:`name`   |
 
 **Auth**
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/auth/github` | Redirect to GitHub OAuth |
-| `GET` | `/api/auth/github/callback` | GitHub OAuth callback |
-| `GET` | `/api/auth/me` | Returns current logged-in user or `null` |
-| `POST` | `/api/auth/logout` | Clears session and logs out |
-| `GET` | `/api/health` | Liveness check |
+| Method   | Path                          | Description                                |
+| -------- | ----------------------------- | ------------------------------------------ |
+| `GET`  | `/api/auth/github`          | Redirect to GitHub OAuth                   |
+| `GET`  | `/api/auth/github/callback` | GitHub OAuth callback                      |
+| `GET`  | `/api/auth/me`              | Returns current logged-in user or `null` |
+| `POST` | `/api/auth/logout`          | Clears session and logs out                |
+| `GET`  | `/api/health`               | Liveness check                             |
 
 ### Frontend (`client/`)
 
@@ -173,37 +173,39 @@ The Vite dev server proxies all `/api` requests to `http://localhost:3001` autom
 
 **Frontend routes:**
 
-| Path | Description |
-|---|---|
-| `/` | Library dashboard — filtering, sorting, add/edit modal, delete |
-| `/books/:id` | Book detail page |
+| Path           | Description                                                     |
+| -------------- | --------------------------------------------------------------- |
+| `/`          | Library dashboard — filtering, sorting, add/edit modal, delete |
+| `/books/:id` | Book detail page                                                |
 
 ### Render deployment
 
 This repo includes a `render.yaml` Render Blueprint. Create a **web service** and a **Postgres database** on Render, then connect them.
 
 **Build command:**
+
 ```
 npm --prefix server install && npm --prefix client install && npm --prefix client run build
 ```
 
 **Start command:**
+
 ```
 cd server && npm start
 ```
 
 **Required environment variables on Render** (set in the dashboard):
 
-| Variable | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | Auto-filled from Render Postgres (via Blueprint) |
-| `PGSSL` | `true` |
-| `SESSION_SECRET` | Long random string |
-| `GITHUB_CLIENT_ID` | Your GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | Your GitHub OAuth App client secret |
-| `GITHUB_CALLBACK_URL` | `https://your-app.onrender.com/api/auth/github/callback` |
-| `CLIENT_URL` | `https://your-app.onrender.com` |
+| Variable                 | Value                                                      |
+| ------------------------ | ---------------------------------------------------------- |
+| `NODE_ENV`             | `production`                                             |
+| `DATABASE_URL`         | Auto-filled from Render Postgres (via Blueprint)           |
+| `PGSSL`                | `true`                                                   |
+| `SESSION_SECRET`       | Long random string                                         |
+| `GITHUB_CLIENT_ID`     | Your GitHub OAuth App client ID                            |
+| `GITHUB_CLIENT_SECRET` | Your GitHub OAuth App client secret                        |
+| `GITHUB_CALLBACK_URL`  | `https://your-app.onrender.com/api/auth/github/callback` |
+| `CLIENT_URL`           | `https://your-app.onrender.com`                          |
 
 **GitHub OAuth App settings** (github.com → Settings → Developer settings → OAuth Apps):
 
