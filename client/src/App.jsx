@@ -130,6 +130,7 @@ function HeroPanel({ books, onAddBook, user, onLogout }) {
             Add book
           </button>
           <a href="#library">Browse library</a>
+          <Link to="/groups">Reading Groups</Link>
         </div>
         <div className="account-bar">
           {user?.avatar_url && <img src={user.avatar_url} alt="" />}
@@ -789,6 +790,295 @@ function BookDetailPage() {
   );
 }
 
+function ConfirmModal({ open, title, message, onConfirm, onCancel, confirming }) {
+  if (!open) return null;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: "400px" }}>
+        <div className="modal-header">
+          <h2>{title}</h2>
+          <button type="button" className="icon-button" onClick={onCancel} disabled={confirming} aria-label="Close">
+            x
+          </button>
+        </div>
+        <p style={{ margin: "1.5rem 0" }}>{message}</p>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+          <button type="button" className="button outline" onClick={onCancel} disabled={confirming} style={{ background: "transparent", border: "1px solid var(--border)", color: "inherit", padding: "0.5rem 1rem", borderRadius: "0.25rem", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm} disabled={confirming} style={{ background: "var(--danger, #dc2626)", color: "white", border: "none", padding: "0.5rem 1rem", borderRadius: "0.25rem", cursor: "pointer" }}>
+            {confirming ? "Working..." : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GroupsPage() {
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    async function fetchGroups() {
+      try {
+        setGroups(await apiJson("/api/groups"));
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchGroups();
+  }, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      const created = await apiJson("/api/groups", {
+        method: "POST",
+        body: JSON.stringify({ name: newName, description: newDesc }),
+      });
+      setGroups([created, ...groups]);
+      setNewName("");
+      setNewDesc("");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await apiJson(`/api/groups/${deleteId}`, { method: "DELETE" });
+      setGroups(groups.filter((g) => g.id !== deleteId));
+      setDeleteId(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <main className="page">
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Reading Groups</h1>
+        <Link to="/" style={{ textDecoration: "none", color: "var(--text)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: "var(--surface-1)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}>
+          &larr; Back to Library
+        </Link>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      <section className="detail-panel" style={{ marginBottom: "2rem" }}>
+        <h2>Create a Group</h2>
+        <form onSubmit={handleCreate} style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label style={{ flex: "1 1 200px" }}>
+            Name
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} required disabled={creating} />
+          </label>
+          <label style={{ flex: "2 1 300px" }}>
+            Description
+            <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} disabled={creating} />
+          </label>
+          <button type="submit" disabled={creating || !newName.trim()}>
+            {creating ? "Creating..." : "Create"}
+          </button>
+        </form>
+      </section>
+
+      {loading ? (
+        <Spinner label="Loading groups" />
+      ) : groups.length === 0 ? (
+        <p className="empty-state">No reading groups yet. Create one above!</p>
+      ) : (
+        <div style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
+          {groups.map((group) => (
+            <article key={group.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", border: "1px solid var(--border)", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
+              <div>
+                <h2 style={{ fontSize: "1.25rem", margin: 0 }}>
+                  <Link to={`/groups/${group.id}`} style={{ color: "var(--text)", textDecoration: "none" }}>📚 {group.name}</Link>
+                </h2>
+                <p className="muted" style={{ margin: "0.5rem 0 0", lineHeight: "1.4" }}>{group.description || "No description provided."}</p>
+              </div>
+              <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "1rem", borderTop: "1px solid var(--surface-2)" }}>
+                <span className="muted" style={{ fontSize: "0.875rem" }}>
+                  <strong>{group.books?.length || 0}</strong> suggested books
+                </span>
+                <button type="button" onClick={() => setDeleteId(group.id)} style={{ background: "transparent", color: "var(--danger)", border: "none", cursor: "pointer", fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}>
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <ConfirmModal
+        open={Boolean(deleteId)}
+        title="Delete Group"
+        message="Are you sure you want to delete this group? This action cannot be undone."
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteId(null)}
+        confirming={deleting}
+      />
+    </main>
+  );
+}
+
+function SuggestedBookCard({ book, onRemove }) {
+  return (
+    <li className="book-card" style={{ "--book-color": getBookAccent(book), position: "relative" }}>
+      <div className="book-cover" aria-hidden="true">
+        <span>{book.title.slice(0, 1)}</span>
+      </div>
+      <div style={{ flex: 1 }}>
+        <p className="eyebrow">{STATUS_LABELS[book.status] || book.status}</p>
+        <h3 style={{ margin: "0.25rem 0" }}>{book.title}</h3>
+        <p className="muted" style={{ fontSize: "0.875rem" }}>{book.author}</p>
+      </div>
+      <button 
+        type="button" 
+        onClick={() => onRemove(book.id)} 
+        style={{ 
+          background: "rgba(220, 38, 38, 0.1)", 
+          color: "var(--danger)", 
+          border: "1px solid var(--danger)", 
+          borderRadius: "var(--radius)",
+          padding: "0.25rem 0.75rem",
+          fontSize: "0.75rem",
+          cursor: "pointer",
+          marginTop: "1rem"
+        }}
+      >
+        Remove
+      </button>
+    </li>
+  );
+}
+
+function GroupDetailPage() {
+  const { id } = useParams();
+  const [group, setGroup] = useState(null);
+  const [availableBooks, setAvailableBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [groupData, booksData] = await Promise.all([
+          apiJson(`/api/groups/${id}`),
+          apiJson("/api/books")
+        ]);
+        setGroup(groupData);
+        setAvailableBooks(booksData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [id]);
+
+  async function handleAttach(e) {
+    const bookId = e.target.value;
+    if (!bookId) return;
+    try {
+      const updated = await apiJson(`/api/groups/${id}/books`, {
+        method: "POST",
+        body: JSON.stringify({ book_id: Number(bookId) })
+      });
+      setGroup(updated);
+    } catch (err) {
+      setToast(err.message);
+      setTimeout(() => setToast(""), 3000);
+    }
+  }
+
+  async function handleDetach(bookId) {
+    try {
+      const updated = await apiJson(`/api/groups/${id}/books/${bookId}`, {
+        method: "DELETE"
+      });
+      setGroup(updated);
+    } catch (err) {
+      setToast(err.message);
+      setTimeout(() => setToast(""), 3000);
+    }
+  }
+
+  if (loading) return <main className="page"><Spinner label="Loading group" /></main>;
+  if (error || !group) return <main className="page"><Link to="/groups">Back</Link><p className="error">{error || "Group not found"}</p></main>;
+
+  return (
+    <main className="page detail-page">
+      <div className="page-header" style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Link to="/groups" style={{ textDecoration: "none", color: "var(--text)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: "var(--surface-1)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}>
+          &larr; Back to Groups
+        </Link>
+        <button type="button" onClick={() => {
+          navigator.clipboard.writeText(window.location.href);
+          setToast("Link copied to clipboard!");
+          setTimeout(() => setToast(""), 3000);
+        }} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+          🔗 Share Group
+        </button>
+      </div>
+      
+      <article className="detail-panel" style={{ padding: "3rem" }}>
+        <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+          <h1 style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>📚 {group.name}</h1>
+          <p className="muted" style={{ fontSize: "1.25rem", maxWidth: "600px", margin: "0 auto" }}>{group.description}</p>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--surface-2)", paddingBottom: "1rem", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+          <h2 style={{ margin: 0 }}>Suggested Books ({group.books?.length || 0})</h2>
+          <select value="" onChange={handleAttach} style={{ maxWidth: "300px", padding: "0.5rem 1rem", borderRadius: "2rem", border: "1px solid var(--border)", background: "var(--surface-1)", color: "inherit", fontWeight: "bold" }}>
+            <option value="" disabled>+ Suggest a book...</option>
+            {availableBooks
+              .filter(b => !group.books?.some(gb => gb.id === b.id))
+              .map(b => (
+                <option key={b.id} value={b.id}>{b.title} by {b.author}</option>
+              ))}
+          </select>
+        </div>
+
+        {group.books?.length === 0 ? (
+          <p className="muted">No books suggested yet.</p>
+        ) : (
+          <ul className="book-grid" style={{ marginTop: "2rem" }}>
+            {group.books.map((book) => (
+              <SuggestedBookCard 
+                key={book.id} 
+                book={book} 
+                onRemove={handleDetach} 
+              />
+            ))}
+          </ul>
+        )}
+      </article>
+
+      <Toast message={toast} onDismiss={() => setToast("")} />
+    </main>
+  );
+}
+
 export default function App() {
   const [authState, setAuthState] = useState({ loading: true, user: null });
 
@@ -817,6 +1107,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LibraryPage user={authState.user} onLogout={logout} />} />
       <Route path="/books/:id" element={<BookDetailPage />} />
+      <Route path="/groups" element={<GroupsPage />} />
+      <Route path="/groups/:id" element={<GroupDetailPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
