@@ -80,7 +80,7 @@ Users sign in with GitHub before viewing the reading dashboard. Sessions are per
 
 ![GitHub OAuth GIF](./milestones/assets/github-oauth.gif)
 
-### Reading groups *(not implemented)*
+### Reading groups ✅ *Implemented*
 
 Club organizers can create lightweight reading groups and attach suggested books so friends can follow a shared plan alongside their personal library.
 
