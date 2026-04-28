@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 const STATUS_LABELS = {
@@ -266,6 +266,7 @@ function BookFormModal({ open, shelves, tags, initial, onClose, onSave, onCreate
   const [creatingShelf, setCreatingShelf] = useState(false);
   const [creatingTag, setCreatingTag] = useState(false);
   const [error, setError] = useState("");
+  const titleInputRef = useRef(null);
   const isEditing = Boolean(initial?.id);
 
   function defaultForm() {
@@ -295,8 +296,21 @@ function BookFormModal({ open, shelves, tags, initial, onClose, onSave, onCreate
       setSaving(false);
       setCreatingShelf(false);
       setCreatingTag(false);
+
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+      }
     }
   }, [open, initial]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -376,7 +390,15 @@ function BookFormModal({ open, shelves, tags, initial, onClose, onSave, onCreate
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="book-form-title">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="book-form-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <form className="modal" onSubmit={handleSubmit}>
         <div className="modal-header">
           <h2 id="book-form-title">{isEditing ? "Edit book" : "Add book"}</h2>
@@ -389,7 +411,13 @@ function BookFormModal({ open, shelves, tags, initial, onClose, onSave, onCreate
 
         <label>
           Title
-          <input disabled={saving} required value={form.title} onChange={(e) => updateField("title", e.target.value)} />
+          <input
+            ref={titleInputRef}
+            disabled={saving}
+            required
+            value={form.title}
+            onChange={(e) => updateField("title", e.target.value)}
+          />
         </label>
         <label>
           Author
@@ -495,8 +523,27 @@ function LibraryPage({ user, onLogout }) {
   const [toast, setToast] = useState("");
   const [filters, setFilters] = useState({ status: "", shelf_id: "", tag_id: "" });
   const [sort, setSort] = useState("updated_desc");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const modalOpen = searchParams.has("new") || searchParams.has("edit");
+  const editingId = searchParams.get("edit");
+  const editing = useMemo(() => {
+    if (!editingId) return null;
+    return books.find((b) => String(b.id) === String(editingId)) || null;
+  }, [books, editingId]);
+
+  function openNewModal() {
+    setSearchParams({ new: "1" });
+  }
+
+  function openEditModal(book) {
+    setSearchParams({ edit: String(book.id) });
+  }
+
+  function closeModal() {
+    setSearchParams({});
+  }
   const [localTagAssignments, setLocalTagAssignments] = useState({});
 
   const tagById = useMemo(
@@ -585,6 +632,7 @@ function LibraryPage({ user, onLogout }) {
     setLocalTagAssignments(nextAssignments);
     await loadBooks(filters, nextAssignments);
     setToast("Book added");
+    navigate(`/books/${created.id}`);
   }
 
   async function updateBook(payload) {
@@ -647,10 +695,7 @@ function LibraryPage({ user, onLogout }) {
         books={books}
         user={user}
         onLogout={onLogout}
-        onAddBook={() => {
-          setEditing(null);
-          setModalOpen(true);
-        }}
+        onAddBook={openNewModal}
       />
 
       <SnapshotPanel books={books} />
@@ -687,10 +732,7 @@ function LibraryPage({ user, onLogout }) {
             book={book}
             shelfName={shelfNameById[String(book.shelf_id)]}
             busy={busyBookId === book.id}
-            onEdit={(selectedBook) => {
-              setEditing(selectedBook);
-              setModalOpen(true);
-            }}
+            onEdit={openEditModal}
             onDelete={deleteBook}
           />
         ))}
@@ -701,10 +743,7 @@ function LibraryPage({ user, onLogout }) {
         shelves={shelves}
         tags={tags}
         initial={editing}
-        onClose={() => {
-          setModalOpen(false);
-          setEditing(null);
-        }}
+        onClose={closeModal}
         onSave={editing ? updateBook : createBook}
         onCreateShelf={createShelf}
         onCreateTag={createTag}
@@ -717,23 +756,52 @@ function BookDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [book, setBook] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadBook() {
+    async function loadData() {
       setLoading(true);
       setError("");
       try {
-        setBook(await apiJson(`/api/books/${id}`));
+        const [bookData, tagsData] = await Promise.all([
+          apiJson(`/api/books/${id}`),
+          apiJson("/api/tags").catch(() => [])
+        ]);
+        setBook(bookData);
+        setAvailableTags(tagsData);
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    loadBook();
+    loadData();
   }, [id]);
+
+  async function attachTag(tagId) {
+    try {
+      const updatedBook = await apiJson(`/api/books/${id}/tags`, {
+        method: "POST",
+        body: JSON.stringify({ tag_id: Number(tagId) })
+      });
+      setBook(updatedBook);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function detachTag(tagId) {
+    try {
+      const updatedBook = await apiJson(`/api/books/${id}/tags/${tagId}`, {
+        method: "DELETE"
+      });
+      setBook(updatedBook);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
 
   if (loading) {
     return (
@@ -777,7 +845,36 @@ function BookDetailPage() {
           </div>
           <div>
             <dt>Tags</dt>
-            <dd>{book.tags.length ? book.tags.map((tag) => tag.name).join(", ") : "No tags"}</dd>
+            <dd>
+              <div className="tag-list" style={{ marginBottom: "0.5rem" }}>
+                {book.tags.length > 0 ? (
+                  book.tags.map((tag) => (
+                    <span key={tag.id} className="tag-chip" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "var(--surface-2, #374151)", padding: "0.25rem 0.5rem", borderRadius: "0.25rem", fontSize: "0.875rem" }}>
+                      {tag.name}
+                      <button type="button" onClick={() => detachTag(tag.id)} aria-label={`Remove ${tag.name}`} style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", padding: "0", display: "inline-flex", alignItems: "center" }}>
+                        &times;
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="muted">No tags</span>
+                )}
+              </div>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) attachTag(e.target.value);
+                }}
+                style={{ fontSize: "0.875rem", padding: "0.25rem" }}
+              >
+                <option value="" disabled>Add tag...</option>
+                {availableTags
+                  .filter((t) => !book.tags.some((bt) => bt.id === t.id))
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+              </select>
+            </dd>
           </div>
           <div>
             <dt>Notes</dt>

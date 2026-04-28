@@ -376,4 +376,80 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+router.post("/:id/tags", async (req, res) => {
+  let id;
+  try {
+    id = parseOptionalId(req.params.id, "id");
+  } catch (err) {
+    return sendError(res, 400, err.message);
+  }
+
+  const tagId = req.body?.tag_id;
+  if (!Number.isInteger(tagId) || tagId <= 0) return sendError(res, 400, "tag_id is required and must be a positive integer");
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const { rows: existingRows } = await client.query("SELECT * FROM books WHERE id = $1", [id]);
+    if (existingRows.length === 0) throw requestError("book not found", 404);
+    
+    // Assume user is owner for this scope, or rely on ensureTagsExist
+    const userId = existingRows[0].user_id ?? DEFAULT_USER_ID;
+    if (!(await ensureTagsExist([tagId], userId))) throw requestError("tag does not exist", 404);
+
+    await client.query(
+      "INSERT INTO book_tags (book_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [id, tagId]
+    );
+
+    await client.query("COMMIT");
+    
+    const { rows } = await pool.query(`${booksSelectSql("WHERE b.id = $1")}`, [id]);
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    if (err.status) return sendError(res, err.status, err.message);
+    console.error(err);
+    sendError(res, 500, "failed to attach tag");
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/:id/tags/:tagId", async (req, res) => {
+  let id, tagId;
+  try {
+    id = parseOptionalId(req.params.id, "id");
+    tagId = parseOptionalId(req.params.tagId, "tagId");
+  } catch (err) {
+    return sendError(res, 400, err.message);
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const { rows: existingRows } = await client.query("SELECT * FROM books WHERE id = $1", [id]);
+    if (existingRows.length === 0) throw requestError("book not found", 404);
+
+    await client.query(
+      "DELETE FROM book_tags WHERE book_id = $1 AND tag_id = $2",
+      [id, tagId]
+    );
+
+    await client.query("COMMIT");
+    
+    const { rows } = await pool.query(`${booksSelectSql("WHERE b.id = $1")}`, [id]);
+    res.json(rows[0]);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    if (err.status) return sendError(res, err.status, err.message);
+    console.error(err);
+    sendError(res, 500, "failed to detach tag");
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
