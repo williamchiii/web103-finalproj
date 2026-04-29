@@ -325,6 +325,7 @@ function BookFormModal({ open, shelves, tags, initial, onClose, onSave, onCreate
         author: form.author.trim(),
         shelf_id: form.shelf_id ? Number(form.shelf_id) : null,
         tag_ids: form.tag_ids,
+        _bookId: initial?.id,
       });
       onClose();
     } catch (err) {
@@ -587,11 +588,10 @@ function LibraryPage({ user, onLogout }) {
     setToast("Book added");
   }
 
-  async function updateBook(payload) {
-    await apiJson(`/api/books/${editing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
-    const nextAssignments = { ...localTagAssignments, [String(editing.id)]: payload.tag_ids ?? [] };
+  async function updateBook({ _bookId, ...payload }) {
+    await apiJson(`/api/books/${_bookId}`, { method: "PATCH", body: JSON.stringify(payload) });
+    const nextAssignments = { ...localTagAssignments, [String(_bookId)]: payload.tag_ids ?? [] };
     setLocalTagAssignments(nextAssignments);
-    setEditing(null);
     await loadBooks(filters, nextAssignments);
     setToast("Book updated");
   }
