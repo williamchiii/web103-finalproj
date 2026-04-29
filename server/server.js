@@ -11,6 +11,7 @@ import authRouter from "./routes/auth.js";
 import booksRouter from "./routes/books.js";
 import shelvesRouter from "./routes/shelves.js";
 import tagsRouter from "./routes/tags.js";
+import groupsRouter from "./routes/groups.js";
 
 dotenv.config();
 
@@ -59,6 +60,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/books", booksRouter);
 app.use("/api/shelves", shelvesRouter);
 app.use("/api/tags", tagsRouter);
+app.use("/api/groups", groupsRouter);
 
 if (process.env.NODE_ENV === "production") {
   const publicDir = path.join(__dirname, "public");
