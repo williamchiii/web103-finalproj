@@ -12,6 +12,7 @@ import booksRouter from "./routes/books.js";
 import shelvesRouter from "./routes/shelves.js";
 import tagsRouter from "./routes/tags.js";
 import groupsRouter from "./routes/groups.js";
+import { migrateReadingGroups } from "./db/migrate.js";
 
 dotenv.config();
 
@@ -71,6 +72,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const port = Number(process.env.PORT ?? 3001);
-app.listen(port, () => {
-  console.log(`ReadWell API listening on http://localhost:${port}`);
+migrateReadingGroups().then(() => {
+  app.listen(port, () => {
+    console.log(`ReadWell API listening on http://localhost:${port}`);
+  });
 });
