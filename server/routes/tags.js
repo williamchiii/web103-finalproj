@@ -120,4 +120,18 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "invalid tag id" });
+  
+  try {
+    const { rowCount } = await pool.query("DELETE FROM tags WHERE id = $1", [id]);
+    if (rowCount === 0) return res.status(404).json({ error: "tag not found" });
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to delete tag" });
+  }
+});
+
 export default router;
